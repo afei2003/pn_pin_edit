@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PN and Pin Editor</title>
+    <style>
+        body { font-family: sans-serif; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .selected { background-color: #e2f3ff; }
+        form { margin-bottom: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>PN Table</h1>
+
+    <!-- Add PN Form -->
+    <form action="{{ url_for('add_pn') }}" method="post">
+        <input type="text" name="partnumber" placeholder="Part Number" required>
+        <input type="text" name="note" placeholder="Note">
+        <button type="submit">Add PN</button>
+    </form>
+
+    <!-- PN Table -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Part Number</th>
+                <th>Note</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pn in pns %}
+            <tr class="pn-row" data-pn-id="{{ pn.id }}">
+                <td>{{ pn.id }}</td>
+                <td>{{ pn.partnumber }}</td>
+                <td>{{ pn.note }}</td>
+                <td>
+                    <!-- Edit PN Form -->
+                    <form action="{{ url_for('update_pn', pn_id=pn.id) }}" method="post" style="display:inline;">
+                        <input type="text" name="partnumber" value="{{ pn.partnumber }}" required>
+                        <input type="text" name="note" value="{{ pn.note }}">
+                        <button type="submit">Update</button>
+                    </form>
+                    <!-- Delete PN Form -->
+                    <form action="{{ url_for('delete_pn', pn_id=pn.id) }}" method="post" style="display:inline;">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h1 id="pin-header" class="hidden">Pin Table (for PN ID: <span id="selected-pn-id"></span>)</h1>
+
+    <!-- Add Pin Form -->
+    <form id="add-pin-form" class="hidden" action="{{ url_for('add_pin') }}" method="post">
+        <input type="hidden" name="pn_id" id="add-pin-pn-id">
+        <input type="text" name="pin" placeholder="Pin" required>
+        <input type="text" name="name" placeholder="Name">
+        <input type="text" name="base_pin" placeholder="Base Pin">
+        <input type="text" name="note" placeholder="Note">
+        <button type="submit">Add Pin</button>
+    </form>
+
+
+    <!-- Pin Table -->
+    <table id="pin-table" class="hidden">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Pin</th>
+                <th>Name</th>
+                <th>Base Pin</th>
+                <th>Note</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="pin-table-body">
+            <!-- Pin rows will be inserted here by JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const pnRows = document.querySelectorAll('.pn-row');
+            const pinHeader = document.getElementById('pin-header');
+            const selectedPnIdSpan = document.getElementById('selected-pn-id');
+            const addPinForm = document.getElementById('add-pin-form');
+            const addPinPnIdInput = document.getElementById('add-pin-pn-id');
+            const pinTable = document.getElementById('pin-table');
+            const pinTableBody = document.getElementById('pin-table-body');
+
+            pnRows.forEach(row => {
+                row.addEventListener('click', function() {
+                    // Remove selection from other rows
+                    pnRows.forEach(r => r.classList.remove('selected'));
+                    // Add selection to current row
+                    this.classList.add('selected');
+
+                    const pnId = this.dataset.pnId;
+                    selectedPnIdSpan.textContent = pnId;
+                    addPinPnIdInput.value = pnId;
+
+                    // Fetch and display pins
+                    fetch(`/pins/${pnId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            pinTableBody.innerHTML = ''; // Clear existing rows
+                            data.pins.forEach(pin => {
+                                const newRow = `
+                                    <tr>
+                                        <td>${pin.id}</td>
+                                        <td>${pin.pin}</td>
+                                        <td>${pin.name}</td>
+                                        <td>${pin.base_pin}</td>
+                                        <td>${pin.note}</td>
+                                        <td>
+                                            <form action="/pin/update/${pin.id}" method="post" style="display:inline;">
+                                                <input type="text" name="pin" value="${pin.pin}" required>
+                                                <input type="text" name="name" value="${pin.name}">
+                                                <input type="text" name="base_pin" value="${pin.base_pin}">
+                                                <input type="text" name="note" value="${pin.note}">
+                                                <button type="submit">Update</button>
+                                            </form>
+                                            <form action="/pin/delete/${pin.id}" method="post" style="display:inline;">
+                                                <button type="submit">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                `;
+                                pinTableBody.insertAdjacentHTML('beforeend', newRow);
+                            });
+                        });
+
+                    // Show pin section
+                    pinHeader.classList.remove('hidden');
+                    addPinForm.classList.remove('hidden');
+                    pinTable.classList.remove('hidden');
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>
